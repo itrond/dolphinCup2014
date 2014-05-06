@@ -50,7 +50,7 @@ function startTournament(){
         startTournament();
       }
 
-  }, 1000);
+  }, 10000);
 }
 
 function nextMove(game, gameNo){
