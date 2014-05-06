@@ -6,28 +6,54 @@ var app = express();
 
 var ch =  require('./chess.js/chess.js');
 
-var tournamentRound = 1;
 
+// Init
+var tournamentRound = 0;
 var noOfGames = 5;
-
 var games = [];
 
-for(var i=0;i<noOfGames;i++){
-  games[i] = ch.Chess();
+startTournament();
+
+console.log("listen on port: " + port);
+app.listen(port);
+
+
+// functions:
+
+function startTournament(){
+
+  tournamentRound++;
+
+  games = [];
+
+  for(var i=0;i<noOfGames;i++){
+    games[i] = ch.Chess();
+  }
+
+  setInterval(function(){
+      var allGamesOver=true;
+      for(var i=0;i<noOfGames;i++){
+        if (!games[i].game_over()){
+          nextMove(games[i], i);
+          allGamesOver=false;
+        }
+        else{
+          console.log("game over in game " + i);
+        }
+      }
+
+      if (allGamesOver){
+        console.log("Round is finished");
+        console.log("-------------------");
+        console.log("--- New round -----");
+        console.log("-------------------");
+        startTournament();
+      }
+
+  }, 1000);
 }
 
-setInterval(function(){
-  for(var i=0;i<noOfGames;i++){
-    nextMove(games[i], i);
-  }
-}, 10000);
-
 function nextMove(game, gameNo){
-  if (game.game_over()){
-    console.log("game over in game " + gameNo);
-    return;
-  }
-
 
   var moves = game.moves();
   var move = moves[Math.floor(Math.random() * moves.length)];
@@ -36,6 +62,11 @@ function nextMove(game, gameNo){
   console.log("game " + gameNo + ": " + move);
 
 }
+
+app.get('/', function(req, res){
+  startTournament();
+  res.send("New tourment started. Go to /pgnfeed to se the live feed");
+});
 
 app.get('/pgnfeed', function(req,res){
 
@@ -57,13 +88,9 @@ function getMockPgn(game, i){
   pgnH.push('[Site "Bergen NOR"]');
   pgnH.push('[Date "2014.05.09"]');
   pgnH.push('[EventDate "2014.05.07"]');
-  pgnH.push('[Round "1"]');
+  pgnH.push('[Round "'+ tournamentRound+'"]');
   pgnH.push('[White "Player ' + (i*2+1)  +   '"]');
   pgnH.push('[Black "Player ' + (i*2+2)  +   '"]');
 
   return pgnH.join("\n") + game.pgn();
 }
-
-
-console.log("listen on port: " + port);
-app.listen(port);
