@@ -20,7 +20,7 @@ setInterval(function(){
   for(var i=0;i<noOfGames;i++){
     nextMove(games[i], i);
   }
-}, 30);
+}, 10000);
 
 function nextMove(game, gameNo){
   if (game.game_over()){
