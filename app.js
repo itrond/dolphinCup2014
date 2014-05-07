@@ -70,6 +70,9 @@ app.get('/', function(req, res){
 
 app.get('/pgnfeed', function(req,res){
 
+  res.send("absolete. use /gamefeed/:round");
+  return;
+
   var total = [];
 
   for(var i=0;i<noOfGames;i++){
