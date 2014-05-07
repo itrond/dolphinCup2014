@@ -82,6 +82,19 @@ app.get('/pgnfeed', function(req,res){
 
 });
 
+app.get('/gamefeed/:round', function(req, res){
+  var request = require("request");
+
+  var roundNo = req.params.round;
+
+  console.log(roundNo);
+
+  request("http://common.liveschach.net/norwaychess2013/" + roundNo + "/games.pgn", function(error, response, body) {
+    console.log(body);
+    res.send(body);
+  });
+});
+
 function getMockPgn(game, i){
   var pgnH = [];
   pgnH.push('[Event "Dolhpin Cup 2014"]');
