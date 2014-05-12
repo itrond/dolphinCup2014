@@ -11,102 +11,150 @@ var ch =  require('./chess.js/chess.js');
 var tournamentRound = 0;
 var noOfGames = 5;
 var games = [];
+var totalGameTime = 6120*2;
+var speedMultiplier = 30;
 
-startTournament();
+//startTournament();
 
 console.log("listen on port: " + port);
 app.listen(port);
 
+var fullPgnGames = [];
 
-// functions:
+var roundStarted;
 
-function startTournament(){
 
-  tournamentRound++;
-
-  games = [];
-
-  for(var i=0;i<noOfGames;i++){
-    games[i] = ch.Chess();
-  }
-
-  setInterval(function(){
-      var allGamesOver=true;
-      for(var i=0;i<noOfGames;i++){
-        if (!games[i].game_over()){
-          nextMove(games[i], i);
-          allGamesOver=false;
-        }
-        else{
-          console.log("game over in game " + i);
-        }
-      }
-
-      if (allGamesOver){
-        console.log("Round is finished");
-        console.log("-------------------");
-        console.log("--- New round -----");
-        console.log("-------------------");
-        startTournament();
-      }
-
-  }, 10000);
-}
-
-function nextMove(game, gameNo){
-
-  var moves = game.moves();
-  var move = moves[Math.floor(Math.random() * moves.length)];
-  game.move(move);
-
-  console.log("game " + gameNo + ": " + move);
-
-}
+// ------------------------------------------------------------
+// ---   functions
+// ------------------------------------------------------------
 
 app.get('/', function(req, res){
   startTournament();
-  res.send("New tourment started. Go to /pgnfeed to se the live feed");
+  res.send("Start round with GET /live/start/:round");
 });
 
-app.get('/pgnfeed', function(req,res){
+app.get('/live/start/:round', function(req, res){
 
-  res.send("absolete. use /gamefeed/:round");
-  return;
+  var roundNo = req.params.round;
 
-  var total = [];
+  roundStarted = new Date();
 
-  for(var i=0;i<noOfGames;i++){
-    total.push(getMockPgn(games[i], i));
-  }
+  var request = require("request");
 
-  var ret = total.join("\n");
+  request("http://common.liveschach.net/norwaychess2013/" + roundNo + "/games.pgn", function(error, response, body) {
 
-  res.send(ret);
+    var split = body.split('[Event "Norway Chess"');
+
+
+    fullPgnGames[0] = '[Event "Norway Chess"' + split[1]+ '"' ;
+    fullPgnGames[1] = '[Event "Norway Chess"' + split[2]+ '"' ;
+    fullPgnGames[2] = '[Event "Norway Chess"' + split[3]+ '"' ;
+    fullPgnGames[3] = '[Event "Norway Chess"' + split[4]+ '"' ;
+    fullPgnGames[4] = '[Event "Norway Chess"' + split[5]+ '"' ;
+
+    console.log(fullPgnGames[0]);
+
+    res.send("Round started. Round: " + roundNo + "\nFollow it live on /live\n");
+
+  });
+});
+
+
+app.get('/live', function(req, res){
+
+  var now = new Date();
+
+  var startI = roundStarted.getTime() / 1000;
+  var nowI = now.getTime() / 1000;
+
+  var roundTimeElapsed = Math.round(nowI-startI) * speedMultiplier;
+  console.log("seconds in game:" + roundTimeElapsed);
+
+
+  var fullPgnFile = fullPgnGames.reduce(function(previousValue, currentValue, index, array){
+    return previousValue + pgnFilterdByTime(currentValue, roundTimeElapsed);
+  },"");
+
+  //console.log(fullPgnFile);
+
+
+
+  res.send(fullPgnFile);
 
 });
+
+
+
+function pgnFilterdByTime(pgnGame, theTime){
+
+
+
+    var find = 0;
+    var finished = false;
+
+    var re = "%clk";
+    var str = pgnGame;
+
+    var lastFoundWithinTimelimit = str.indexOf("%clk") - 8;
+    var index = 0;
+
+    var totTime = totalGameTime;
+    var timeLeft1 = totTime /2;
+    var timeLeft2 = totTime /2;
+
+    while (true){
+
+      index = str.indexOf(re, index);
+
+      if (index===-1)
+         break;
+
+
+      index = index + 4;
+
+      var sMoveTime = str.substr(index,8);
+
+      var thisPlayerLeft = (parseInt(sMoveTime.substr(0,2)) * 60 * 60) +
+                      (parseInt(sMoveTime.substr(3,2)) * 60) +
+                      (parseInt(sMoveTime.substr(6,2)));
+
+      timeLeft1 = timeLeft2;
+      timeLeft2 = thisPlayerLeft;
+
+      var thisTime = totTime - (timeLeft1 + timeLeft2);
+
+      console.log("thisTime > theTime" + thisTime + " > " + theTime)
+
+
+
+      if (thisTime > theTime)
+        break;
+
+      lastFoundWithinTimelimit = index;
+
+      console.log("lastFoundWithinTimelimit" + lastFoundWithinTimelimit);
+
+      index = index + 4;
+
+    }
+
+    return pgnGame.substr(0,lastFoundWithinTimelimit-6) + "\n\n";
+}
+
+
+
+
+
+
+
 
 app.get('/gamefeed/:round', function(req, res){
   var request = require("request");
 
   var roundNo = req.params.round;
 
-  console.log(roundNo);
-
   request("http://common.liveschach.net/norwaychess2013/" + roundNo + "/games.pgn", function(error, response, body) {
     console.log(body);
     res.send(body);
   });
 });
-
-function getMockPgn(game, i){
-  var pgnH = [];
-  pgnH.push('[Event "Dolhpin Cup 2014"]');
-  pgnH.push('[Site "Bergen NOR"]');
-  pgnH.push('[Date "2014.05.09"]');
-  pgnH.push('[EventDate "2014.05.07"]');
-  pgnH.push('[Round "'+ tournamentRound+'"]');
-  pgnH.push('[White "Player ' + (i*2+1)  +   '"]');
-  pgnH.push('[Black "Player ' + (i*2+2)  +   '"]');
-
-  return pgnH.join("\n") + game.pgn();
-}
