@@ -16,6 +16,6 @@ starts round 1
 
 GET /live/start/:round
 
-http://dolphincup2014.azurewebsites.net/live/
+http://dolphincup2014.azurewebsites.net/live
 
-starts round 1
+get feed-data
